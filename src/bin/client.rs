@@ -37,6 +37,7 @@ fn main() -> anyhow::Result<()> {
                             // TODO: We dont handle the case where we werent able to write the full message
                             match connection.write(msg.as_bytes()) {
                                 Ok(_n) => {
+                                    println!("Sent {} messages to server", write_count);
                                     write_count += 1;
                                 }
                                 Err(e) => {
@@ -55,17 +56,28 @@ fn main() -> anyhow::Result<()> {
             }
 
             if event.is_readable() {
-                let mut buf = vec![0; 16];
+                // How many bytes to read should be handled by application layer
+                let mut buf = vec![0; 4096];
                 let mut connection_closed = false;
+                // If there is unread data from server that is pending, then closing the client
+                // will make server get "Connection reset by peer" error.
+                // https://stackoverflow.com/questions/76347638/connection-reset-by-peer-error-for-simple-tcp-server-with-mio-under-minor-load
                 match connection.read(&mut buf) {
                     Ok(0) => {
                         println!("0 byte read");
                         connection_closed = true;
                     }
                     Ok(_) => {
-                        println!("Received {} from server", String::from_utf8(buf)?);
                         read_count += 1;
+                        println!(
+                            "Received {} from server. Read count: {}",
+                            String::from_utf8(buf)?,
+                            read_count
+                        );
                         if read_count == MAX_MSGS {
+                            println!(
+                                "Received all messages back from server. Shutting down connection"
+                            );
                             return Ok(());
                         }
                     }
@@ -75,6 +87,7 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 if connection_closed {
+                    println!("Connection closed by server. Shutting down connection");
                     return Ok(());
                 }
             }

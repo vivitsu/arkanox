@@ -113,6 +113,7 @@ fn handle(
             if let Ok(str_buf) = std::str::from_utf8(&received) {
                 println!("Received: {}", str_buf);
                 if let Ok(()) = connection.write_all(str_buf.as_bytes()) {
+                    println!("Echoed {} back to client", str_buf);
                     return Ok(false);
                 }
                 // Enqueue the write if we werent able to write it here
